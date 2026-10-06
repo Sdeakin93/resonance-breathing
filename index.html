@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d1716">
+<title>Resonance Pacer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600&family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Resonance Pacer</h1>
+    <div class="sensor">
+      <span class="chip" id="chip" data-state="off"><i></i><span id="chipText">No heart sensor</span></span>
+      <button class="link" id="connect" type="button">Connect</button>
+    </div>
+  </header>
+
+  <div class="connect-panel" id="connectPanel" hidden>
+    <p id="btHelp">Turn on <strong>Heart Rate Broadcast</strong> in the Whoop app (or put on your strap), then choose it from the list.</p>
+    <div class="actions">
+      <button class="btn primary" id="connectBt" type="button">Choose Bluetooth device</button>
+    </div>
+    <p class="fine">No device handy? <button class="link" id="demoStrap" type="button">Try a demo strap</button> or <button class="link" id="demoWrist" type="button">a demo Whoop</button>.</p>
+  </div>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" id="tab-breathe" aria-selected="true" data-view="breathe">Breathe</button>
+    <button role="tab" id="tab-find" aria-selected="false" data-view="find">Find my rate</button>
+    <button role="tab" id="tab-history" aria-selected="false" data-view="history">History</button>
+  </nav>
+
+  <div class="stage" aria-live="polite">
+    <div class="orbbox">
+      <div class="ringguide" aria-hidden="true"></div>
+      <div class="orb" id="orb"></div>
+      <div class="cue"><b id="cue">Ready</b><span id="count">5.5 / min</span></div>
+    </div>
+    <canvas id="trace" aria-label="Breath guide and heart rate over the last minute"></canvas>
+    <div class="legend"><span class="k breathk"></span>breath guide <span class="k hrk"></span>heart rate</div>
+    <div class="stats">
+      <div><span class="lbl">Heart rate</span><span class="val" id="sHR">--</span></div>
+      <div><span class="lbl">Swing per breath</span><span class="val" id="sSwing">--</span></div>
+      <div><span class="lbl">Lock-in</span><span class="val" id="sLock">--</span></div>
+    </div>
+    <div class="meta"><span id="split">4.4 s in · 6.5 s out</span><span id="timer">00:00 / 15:00</span></div>
+  </div>
+
+  <section id="view-breathe" class="view">
+    <div class="controls">
+      <div class="row">
+        <label for="rate">Breaths / min</label>
+        <input id="rate" type="range" min="4.5" max="7" step="0.25" value="5.5">
+        <output id="rateOut" for="rate">5.5</output>
+      </div>
+      <p class="fine" id="rfNote">5.5 is the most common resonance rate. Use Find my rate to get yours.</p>
+      <div class="row">
+        <label for="ratio">In : out</label>
+        <input id="ratio" type="range" min="30" max="50" step="5" value="40">
+        <output id="ratioOut" for="ratio">40 : 60</output>
+      </div>
+      <div class="row two">
+        <span class="lbl2">Session</span>
+        <div class="seg" id="mins" role="group" aria-label="Session length">
+          <button type="button" data-m="5" aria-pressed="false">5 min</button>
+          <button type="button" data-m="10" aria-pressed="false">10 min</button>
+          <button type="button" data-m="15" aria-pressed="true">15 min</button>
+          <button type="button" data-m="20" aria-pressed="false">20 min</button>
+        </div>
+      </div>
+      <div class="toggles">
+        <label><input id="sound" type="checkbox" checked> Soft tone</label>
+        <label><input id="buzz" type="checkbox" checked> Vibrate at each switch</label>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="go" type="button">Start</button>
+        <button class="btn" id="stop" type="button" hidden>End</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-find" class="view" hidden>
+    <div class="explain">
+      <p>You'll breathe at six rates, from 7 down to 4.5 breaths per minute, for 2 minutes each. The app picks the rate where your heart rate swings most with each breath. Sit upright, breathe gently through your nose, and keep the depth steady.</p>
+      <label class="check"><input id="skip45" type="checkbox"> Skip 4.5 (many people find it hard), 10 minutes instead of 12</label>
+      <div class="actions">
+        <button class="btn primary" id="calGo" type="button">Start finding my rate</button>
+        <button class="btn" id="calStop" type="button" hidden>Cancel</button>
+      </div>
+      <p class="fine" id="calNeed">Connect your Whoop or a strap first. A demo device works for trying it out.</p>
+    </div>
+    <div id="calResult" hidden>
+      <h2>Your resonance rate: <span id="rfBig"></span> breaths / min</h2>
+      <p id="calSummary"></p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Rate</th><th>Swing (bpm)</th><th>LF power</th><th>Lock-in</th></tr></thead>
+          <tbody id="calRows"></tbody>
+        </table>
+      </div>
+      <div class="actions"><button class="btn primary" id="useRf" type="button">Use this rate</button></div>
+    </div>
+  </section>
+
+  <section id="view-history" class="view" hidden>
+    <h2>Sessions</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>When</th><th>Rate</th><th>Time</th><th>Avg swing</th><th>RMSSD</th></tr></thead>
+        <tbody id="histRows"></tbody>
+      </table>
+    </div>
+    <p class="empty" id="histEmpty">Finished sessions appear here. Data stays on this phone.</p>
+    <h2>Rate checks</h2>
+    <ul class="plain" id="calHist"></ul>
+    <p class="empty" id="calEmpty">No rate checks yet.</p>
+    <div class="actions"><button class="btn" id="export" type="button">Copy all data as JSON</button></div>
+  </section>
+
+  <p class="fine">A breathing guide, not medical advice. Breathe gently, not deeply. Stop if you feel light-headed.</p>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
